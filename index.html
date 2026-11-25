@@ -5879,7 +5879,19 @@
       return { ...base, options: opts, answer: opts.indexOf(correct) };
     }
 
+    function updateLevelCounts() {
+      const c = { all: 0, easy: 0, normal: 0, hard: 0 };
+      QUESTION_BANK.forEach(i => {
+        if (!selectedUnits.has(i.unit)) return;
+        if (!(questionType === "mixed" || i.type === questionType)) return;
+        c.all++; c[levelOf(i)]++;
+      });
+      const nm = { all: "전체", easy: "쉬움", normal: "보통", hard: "어려움" };
+      Object.keys(nm).forEach(k => { const b = document.getElementById("level-" + k); if (b) b.textContent = `${nm[k]} (${c[k]})`; });
+    }
+
     function startNewQuiz(customItems) {
+      updateLevelCounts();
       const custom = Array.isArray(customItems);
       if (!custom && selectedUnits.size === 0) {
         $("unit-warning").classList.remove("hidden");
@@ -5913,17 +5925,10 @@
             if (buckets[u].length > 0) { picked.push(buckets[u].shift()); added = true; }
           }
         }
-        let filled = 0;
-        if (picked.length < targetCount && levelFilter !== "all") {
-          const order = { easy: 0, normal: 1, hard: 2 };
-          const want = order[levelFilter];
-          const used = new Set(picked.map(q => q.q));
-          const extra = shuffleArray(QUESTION_BANK.filter(i => selectedUnits.has(i.unit) && (questionType === "mixed" || i.type === questionType) && !used.has(i.q)))
-            .sort((a, b) => Math.abs(order[levelOf(a)] - want) - Math.abs(order[levelOf(b)] - want));
-          while (picked.length < targetCount && extra.length) { picked.push(extra.shift()); filled++; }
-        }
-        if (filled > 0) notice.textContent = `선택한 난이도의 문제가 부족해 비슷한 난이도 ${filled}문제를 더해 ${picked.length}문제로 출제했어요.`;
-        else if (picked.length < targetCount) notice.textContent = `선택한 조건의 문제가 ${picked.length}개뿐이라 ${picked.length}문제로 출제했어요.`;
+        const lvName = { easy: "쉬움", normal: "보통", hard: "어려움" };
+        if (picked.length < targetCount) notice.textContent = levelFilter === "all"
+          ? `선택한 조건의 문제가 ${picked.length}개뿐이라 ${picked.length}문제로 출제했어요.`
+          : `'${lvName[levelFilter]}' 문제가 ${picked.length}개뿐이라 ${picked.length}문제만 출제했어요. 단원을 더 선택하거나 난이도를 바꾸면 문제 수가 늘어나요.`;
         if (picked.length === 0) { notice.textContent = "선택한 조건에 맞는 문제가 없어요."; return; }
         finalItems = shuffleArray(picked);
         finalItems.forEach(i => recentSeenQuestions.add(i.q));
