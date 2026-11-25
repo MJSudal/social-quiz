@@ -166,7 +166,7 @@
       <div id="sa-area" class="hidden space-y-2">
         <div class="flex gap-2">
           <input type="text" id="sa-input" aria-label="정답 입력" autocomplete="off" placeholder="정답을 입력하세요"
-            onkeydown="if(event.key==='Enter') submitShortAnswer()"
+            onkeydown="if(event.key==='Enter' && !event.isComposing && event.keyCode!==229) { event.preventDefault(); submitShortAnswer(); }"
             class="flex-1 border border-slate-300 focus:border-blue-500 focus:outline-none rounded-lg px-3.5 py-2.5 text-sm font-medium" />
           <button id="sa-submit-btn" onclick="submitShortAnswer()"
             class="bg-slate-900 hover:bg-slate-800 text-white font-bold px-5 py-2.5 rounded-lg text-sm shrink-0">
@@ -6066,12 +6066,13 @@
         correctCount++;
         st.c++;
       } else {
-        wrongNotes.push({ unitName: item.unitName, q: item.q, userAns: userAnsText, correctAns: correctAnsText, explanation: cleanExp(item), tip: item.tip });
+        wrongNotes.push({ unitName: item.unitName, q: item.q, userAns: userAnsText, correctAns: correctAnsText, explanation: cleanExp(item) || (item.q.split("\n")[0] + " → " + correctAnsText), tip: item.tip });
       }
       updateWrongBadge();
       savePersistedState();
       $("score-correct").textContent = correctCount;
       paintFeedback(isCorrect, correctAnsText);
+      toastResult(isCorrect, isCorrect ? "✓ 정답입니다!" : "✕ 오답입니다");
       $("override-btn").classList.toggle("hidden", isCorrect || item.type !== "sa");
       const ex = cleanExp(item); $("feedback-explanation").textContent = ex; $("feedback-explanation").classList.toggle("hidden", !ex);
       const showTip = item.tip && !(item.explanation||"").includes(item.tip);
@@ -6086,7 +6087,7 @@
       nextBtn.classList.toggle("hover:bg-emerald-700", last);
       nextBtn.classList.toggle("bg-blue-600", !last);
       nextBtn.classList.toggle("hover:bg-blue-700", !last);
-      nextBtn.focus();
+      if (item.type === "mc") nextBtn.focus(); else setTimeout(() => { if (isAnswered) nextBtn.focus(); }, 400);
     }
 
     function overrideCorrect() {
@@ -6102,6 +6103,7 @@
       savePersistedState();
       $("score-correct").textContent = correctCount;
       paintFeedback(true, item.displayAnswer);
+      toastResult(true, "✓ 정답으로 인정했습니다");
       $("override-btn").classList.add("hidden");
     }
 
@@ -6134,8 +6136,32 @@
       const ans = m[1], rest = m[2].trim();
       const nz = x => x.replace(/[\s.,·'"“”‘’()（）\-–—:：]/g, "");
       const a = nz(ans), r = nz(rest);
-      if (!r || r === a || a.includes(r) || (r.includes(a) && r.length <= a.length + 2)) return "";
+      if (!r || r === a || a.includes(r) || (r.includes(a) && r.length <= a.length + 2)) return blankFill(item);
       return rest;
+    }
+
+    function blankFill(item) {
+      if (!item.blank) return "";
+      const k = item.q.indexOf("\n");
+      if (k < 0) return "";
+      const ans = item.displayAnswer || (item.accepted && item.accepted[0]) || "";
+      const sent = item.q.slice(k + 1).replace(/\([\s\u3000]*\)/, ans);
+      return "완성된 문장: " + sent;
+    }
+
+    function toastResult(ok, msg) {
+      let t = document.getElementById("result-toast");
+      if (!t) {
+        t = document.createElement("div");
+        t.id = "result-toast";
+        t.style.cssText = "position:fixed;top:76px;left:50%;transform:translateX(-50%);z-index:90;padding:12px 26px;border-radius:999px;font-weight:800;font-size:18px;box-shadow:0 8px 24px rgba(0,0,0,.2);pointer-events:none;transition:opacity .25s;color:#fff";
+        document.body.appendChild(t);
+      }
+      t.textContent = msg;
+      t.style.background = ok ? "#059669" : "#e11d48";
+      t.style.opacity = "1";
+      clearTimeout(t._h);
+      t._h = setTimeout(() => { t.style.opacity = "0"; }, 1400);
     }
 
     function retryWrong() {
