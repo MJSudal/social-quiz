@@ -5962,6 +5962,12 @@
     function renderQuestion() {
       isAnswered = false;
       const item = quizQueue[currentIndex];
+      if (item.type === "mc" && item.options.length >= 2) {
+        // 문제를 보여줄 때마다 보기 순서를 새로 섞는다
+        const correctText = item.options[item.answer];
+        const sh = shuffleArray(item.options);
+        item.options = sh; item.answer = sh.indexOf(correctText);
+      }
       const total = quizQueue.length;
       const num = currentIndex + 1;
       $("progress-label").textContent = `${num} / ${total}`;
